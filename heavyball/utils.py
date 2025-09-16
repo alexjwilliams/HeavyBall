@@ -970,13 +970,15 @@ class StatefulOptimizer(torch.optim.Optimizer):
         should_promote: bool = True,
         beta1: float = -1.0,
         raw: bool = False,
+        set_to_none: bool = True,
     ):
         for p in group["params"]:
             grad = getattr(p, "grad", None)
             if grad is None and skip_none:
                 continue
 
-            p.grad = None
+            if set_to_none:
+                p.grad = None
 
             if raw:
                 yield p, grad
@@ -1169,7 +1171,7 @@ class StatefulOptimizer(torch.optim.Optimizer):
         self._fallback_enabled = True
         return self._handle_closure(closure)
 
-    def step(self, closure: Optional[Callable] = None):
+    def step(self, closure: Optional[Callable] = None, set_to_none: bool = True):
         if self.precond_schedule is None:
             self._is_preconditioning = False
         else:
@@ -1182,12 +1184,14 @@ class StatefulOptimizer(torch.optim.Optimizer):
                 if "param_count" not in group:
                     group["param_count"] = sum(p.numel() for p in group["params"])
                 group["is_preconditioning"] = self._is_preconditioning
-                self._step(group)
+                self._step(group, set_to_none=set_to_none)
                 if self.use_ema:
                     self.ema_update()
                 for real, views in self.mapping.items():
                     for tensor in (real, *views):
-                        for key in ("grad", "vector", "hessian_vector", "orig"):
+                        if set_to_none and hasattr(tensor, "grad"):
+                            setattr(tensor, "grad", None)
+                        for key in ("vector", "hessian_vector", "orig"):
                             if hasattr(tensor, key):
                                 setattr(tensor, key, None)
         return loss

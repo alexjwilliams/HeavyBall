@@ -983,7 +983,7 @@ class ChainOpt(utils.StatefulOptimizer):
     def _set_indices(self, retain=True):
         self._fns = set_indices(self.fns, retain)
 
-    def _step(self, group):
+    def _step(self, group, set_to_none: bool = True):
         if "base_lr" not in group:
             group["base_lr"] = group["lr"]
         if "prev_lr" in group and group["prev_lr"] != group["lr"]:
@@ -995,7 +995,11 @@ class ChainOpt(utils.StatefulOptimizer):
 
         caution = group["caution"]
 
-        vals = list(self.split_p_and_g_in_group(group, should_promote=self.promote, beta1=utils.get_beta1(group)))
+        vals = list(
+            self.split_p_and_g_in_group(
+                group, should_promote=self.promote, beta1=utils.get_beta1(group), set_to_none=set_to_none
+            )
+        )
 
         if not vals:
             return
