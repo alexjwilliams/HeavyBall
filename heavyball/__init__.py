@@ -1169,6 +1169,53 @@ class NewtonHybrid2PSGDLRA(ForeachNewtonPSGDLRA):
     hvp_interval = 2
 
 
+class SplitOpt(utils.StatefulOptimizer):
+    """
+    Delegates different parameter groups to different underlying optimizers.
+
+        opt = SplitOpt([
+            {'params': matrices, 'optimizer': Muon, 'lr': 0.02},
+            {'params': vectors, 'optimizer': AdamW, 'lr': 0.001},
+        ])
+    """
+
+    def __init__(self, specs):
+        self.optimizers, all_params = [], []
+        for spec in specs:
+            spec = dict(spec)
+            params = list(spec.pop('params'))
+            if params:
+                self.optimizers.append(spec.pop('optimizer')(params, **spec))
+                all_params.extend(params)
+        if not self.optimizers:
+            raise ValueError("No optimizers created")
+        super().__init__(all_params, {}, foreach=True)
+
+    def _step(self, group):
+        pass
+
+    def _handle_closure(self, closure):
+        return self.optimizers[0]._handle_closure(closure)
+
+    @torch.no_grad()
+    def step(self, closure=None):
+        loss = self._handle_closure(closure) if closure else None
+        for opt in self.optimizers:
+            opt.step()
+        return loss
+
+    def zero_grad(self, set_to_none: bool = True):
+        for opt in self.optimizers:
+            opt.zero_grad(set_to_none=set_to_none)
+
+    def state_dict(self):
+        return {'optimizers': [opt.state_dict() for opt in self.optimizers]}
+
+    def load_state_dict(self, state_dict):
+        for opt, s in zip(self.optimizers, state_dict['optimizers']):
+            opt.load_state_dict(s)
+
+
 class SAMWrapper(torch.optim.Optimizer):
     def __init__(
         self,
