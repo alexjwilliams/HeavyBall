@@ -1183,9 +1183,9 @@ class SplitOpt(utils.StatefulOptimizer):
         self.optimizers, all_params = [], []
         for spec in specs:
             spec = dict(spec)
-            params = list(spec.pop('params'))
+            params = list(spec.pop("params"))
             if params:
-                self.optimizers.append(spec.pop('optimizer')(params, **spec))
+                self.optimizers.append(spec.pop("optimizer")(params, **spec))
                 all_params.extend(params)
         if not self.optimizers:
             raise ValueError("No optimizers created")
@@ -1209,10 +1209,10 @@ class SplitOpt(utils.StatefulOptimizer):
             opt.zero_grad(set_to_none=set_to_none)
 
     def state_dict(self):
-        return {'optimizers': [opt.state_dict() for opt in self.optimizers]}
+        return {"optimizers": [opt.state_dict() for opt in self.optimizers]}
 
     def load_state_dict(self, state_dict):
-        for opt, s in zip(self.optimizers, state_dict['optimizers']):
+        for opt, s in zip(self.optimizers, state_dict["optimizers"]):
             opt.load_state_dict(s)
 
 
